@@ -5,22 +5,45 @@ import { UpdateDocenteDto } from './dto/update-docente.dto.js';
 @Injectable()
 export class DocentesService {
   create(createDocenteDto: CreateDocenteDto) {
-    return 'This action adds a new docente';
+    return createDocenteDto;
   }
 
-  findAll() {
-    return `This action returns all docentes`;
+    findAll() {
+    return [
+      { 
+        id: 1, 
+        nombre: 'Dagner Causil', 
+        correo: 'dagner@correo.com', 
+        avatar_url: 'https://ejemplo.com' 
+      },
+      { 
+        id: 2, 
+        nombre: 'Andrés Mendoza', 
+        correo: 'andres@correo.com', 
+        avatar_url: 'https://ejemplo.com' 
+      }
+    ];
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} docente`;
+    return { 
+        id: 1, 
+        nombre: 'Dagner Causil', 
+        correo: 'dagner@correo.com', 
+        avatar_url: 'https://ejemplo.com' 
+      }
   }
 
   update(id: number, updateDocenteDto: UpdateDocenteDto) {
-    return `This action updates a #${id} docente`;
+    return {
+      id: id,
+      updateDocenteDto,
+    }
   }
 
   remove(id: number) {
-    return `This action removes a #${id} docente`;
+    return {
+      id,
+    }
   }
 }
