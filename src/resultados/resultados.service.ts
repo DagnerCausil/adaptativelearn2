@@ -5,22 +5,49 @@ import { UpdateResultadoDto } from './dto/update-resultado.dto.js';
 @Injectable()
 export class ResultadosService {
   create(createResultadoDto: CreateResultadoDto) {
-    return 'This action adds a new resultado';
+    return createResultadoDto;
   }
 
-  findAll() {
-    return `This action returns all resultados`;
+    findAll() {
+    return [
+      {
+        id: 1,
+        id_inscripcion: 101,
+        id_experiencia_evidencia: 201,
+        estado: 'aprobado',
+        fecha_calculo: '2026-10-26T10:45:00Z'
+      },
+      {
+        id: 2,
+        id_inscripcion: 102,
+        id_experiencia_evidencia: 202,
+        estado: 'reprobado',
+        fecha_calculo: '2026-10-26T11:00:00Z'
+      }
+    ];
   }
+
 
   findOne(id: number) {
-    return `This action returns a #${id} resultado`;
+    return {
+      id: 1,
+      id_inscripcion: 101,
+      id_experiencia_evidencia: 201,
+      estado: 'aprobado',
+      fecha_calculo: '2026-10-26T10:45:00Z'
+    }
   }
 
   update(id: number, updateResultadoDto: UpdateResultadoDto) {
-    return `This action updates a #${id} resultado`;
+    return {
+      id: id,
+      updateResultadoDto,
+    }
   }
 
   remove(id: number) {
-    return `This action removes a #${id} resultado`;
+    return {
+      id: id,
+    }
   }
 }
