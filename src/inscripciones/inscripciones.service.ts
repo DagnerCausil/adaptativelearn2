@@ -38,12 +38,12 @@ export class InscripcionesService {
     return {
       id: id,
       updateInscripcioneDto,
-    };
+    }
   }
 
   remove(id: number) {
     return {
       id,
-    };
+    }
   }
 }
