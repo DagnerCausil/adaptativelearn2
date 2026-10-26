@@ -5,22 +5,45 @@ import { UpdateInscripcioneDto } from './dto/update-inscripcione.dto.js';
 @Injectable()
 export class InscripcionesService {
   create(createInscripcioneDto: CreateInscripcioneDto) {
-    return 'This action adds a new inscripcione';
+    return createInscripcioneDto;
   }
 
   findAll() {
-    return `This action returns all inscripciones`;
+    return [
+      {
+        id: 1,
+        id_estudiante: 1,
+        id_experiencia: 101,
+        fecha_union: '2026-10-26T10:15:00Z'
+      },
+      {
+        id: 2,
+        id_estudiante: 2,
+        id_experiencia: 102,
+        fecha_union: '2026-10-26T11:30:00Z'
+      }
+    ];
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} inscripcione`;
+    return {
+      id: 1,
+      id_estudiante: 1,
+      id_experiencia: 101,
+      fecha_union: '2026-10-26T10:15:00Z'
+    };
   }
 
   update(id: number, updateInscripcioneDto: UpdateInscripcioneDto) {
-    return `This action updates a #${id} inscripcione`;
+    return {
+      id: id,
+      updateInscripcioneDto,
+    };
   }
 
   remove(id: number) {
-    return `This action removes a #${id} inscripcione`;
+    return {
+      id,
+    };
   }
 }
