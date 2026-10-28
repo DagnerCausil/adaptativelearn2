@@ -27,7 +27,7 @@ export class InscripcionesService {
 
   findOne(id: number) {
     return {
-      id: 1,
+      id,
       id_estudiante: 1,
       id_experiencia: 101,
       fecha_union: '2026-10-26T10:15:00Z'
@@ -36,7 +36,7 @@ export class InscripcionesService {
 
   update(id: number, updateInscripcioneDto: UpdateInscripcioneDto) {
     return {
-      id: id,
+      id,
       updateInscripcioneDto,
     }
   }

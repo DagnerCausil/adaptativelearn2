@@ -34,7 +34,7 @@ export class ItemsService {
 
   findOne(id: number) {
     return {
-      id: 1,
+      id,
       id_experiencia_evidencia: 10,
       enunciado: '¿Cuál es la capital de Colombia?',
       formato: 'opcion_multiple',

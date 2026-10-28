@@ -30,7 +30,7 @@ export class ResultadosService {
 
   findOne(id: number) {
     return {
-      id: 1,
+      id,
       id_inscripcion: 101,
       id_experiencia_evidencia: 201,
       estado: 'aprobado',

@@ -27,7 +27,7 @@ export class DocentesService {
 
   findOne(id: number) {
     return { 
-        id: 1, 
+        id,
         nombre: 'Dagner Causil', 
         correo: 'dagner@correo.com', 
         avatar_url: 'https://ejemplo.com' 
@@ -36,7 +36,7 @@ export class DocentesService {
 
   update(id: number, updateDocenteDto: UpdateDocenteDto) {
     return {
-      id: id,
+      id,
       updateDocenteDto,
     }
   }
