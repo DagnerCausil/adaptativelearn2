@@ -1,53 +1,222 @@
-import { Injectable } from '@nestjs/common';
-import { CreateResultadoDto } from './dto/create-resultado.dto.js';
-import { UpdateResultadoDto } from './dto/update-resultado.dto.js';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Experiencia } from '../experiencias/schemas/experiencia.schema.js';
+import { ExperienciaEvidencia } from '../experiencias_evidencias/schemas/experiencia-evidencia.schema.js';
+import { Inscripcion } from '../inscripciones/schemas/inscripcion.schema.js';
+import { Item } from '../items/schemas/item.schema.js';
+import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
+import { Respuesta } from '../respuestas/schemas/respuesta.schema.js';
+import { calcularEstadoResultado } from './regla-resultado.js';
+import { Resultado, ResultadoDocument } from './schemas/resultado.schema.js';
+
+function esIndiceUnicoDuplicado(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 11000
+  );
+}
 
 @Injectable()
 export class ResultadosService {
-  create(createResultadoDto: CreateResultadoDto) {
-    return createResultadoDto;
-  }
+  constructor(
+    @InjectModel(Resultado.name)
+    private readonly resultadoModel: Model<Resultado>,
+    @InjectModel(Inscripcion.name)
+    private readonly inscripcionModel: Model<Inscripcion>,
+    @InjectModel(ExperienciaEvidencia.name)
+    private readonly experienciaEvidenciaModel: Model<ExperienciaEvidencia>,
+    @InjectModel(Presentacion.name)
+    private readonly presentacionModel: Model<Presentacion>,
+    @InjectModel(Respuesta.name)
+    private readonly respuestaModel: Model<Respuesta>,
+    @InjectModel(Item.name)
+    private readonly itemModel: Model<Item>,
+    @InjectModel(Experiencia.name)
+    private readonly experienciaModel: Model<Experiencia>,
+  ) {}
 
-    findAll() {
-    return [
-      {
-        id: 1,
-        id_inscripcion: 101,
-        id_experiencia_evidencia: 201,
-        estado: 'aprobado',
-        fecha_calculo: '2026-10-26T10:45:00Z'
-      },
-      {
-        id: 2,
-        id_inscripcion: 102,
-        id_experiencia_evidencia: 202,
-        estado: 'reprobado',
-        fecha_calculo: '2026-10-26T11:00:00Z'
+  async calcularPorInscripcion(idInscripcion: Types.ObjectId) {
+    const inscripcion = await this.inscripcionModel
+      .findById(idInscripcion)
+      .exec();
+    if (!inscripcion) {
+      throw new NotFoundException('Inscripción no encontrada.');
+    }
+
+    const resultadoExistente = await this.resultadoModel
+      .exists({ id_inscripcion: idInscripcion });
+    if (resultadoExistente) {
+      throw new ConflictException(
+        'Ya existen resultados para esta inscripción; los resultados históricos no se modifican.',
+      );
+    }
+
+    const evidenciasIncluidas = await this.experienciaEvidenciaModel
+      .find({
+        id_experiencia: inscripcion.id_experiencia,
+        incluida: true,
+      })
+      .exec();
+
+    const presentaciones = await this.presentacionModel
+      .find({ id_inscripcion: idInscripcion })
+      .exec();
+    const presentacionPorItem = new Map(
+      presentaciones.map((presentacion) => [
+        presentacion.id_item.toString(),
+        presentacion._id,
+      ]),
+    );
+    const presentacionIds = presentaciones.map(
+      (presentacion) => presentacion._id,
+    );
+    const respuestas = presentacionIds.length
+      ? await this.respuestaModel
+          .find({ id_presentacion: { $in: presentacionIds } })
+          .exec()
+      : [];
+    const respuestasPorPresentacion = new Map(
+      respuestas.map((respuesta) => [
+        respuesta.id_presentacion.toString(),
+        respuesta,
+      ]),
+    );
+
+    const items = presentaciones.length
+      ? await this.itemModel
+          .find({
+            _id: {
+              $in: presentaciones.map((presentacion) => presentacion.id_item),
+            },
+          })
+          .exec()
+      : [];
+    const itemsPorId = new Map(items.map((item) => [item._id.toString(), item]));
+    const respuestasPorEvidencia = new Map<string, Respuesta[]>();
+
+    for (const [idItem, idPresentacion] of presentacionPorItem) {
+      const item = itemsPorId.get(idItem);
+      const respuesta = respuestasPorPresentacion.get(
+        idPresentacion.toString(),
+      );
+      if (!item || !respuesta) {
+        continue;
       }
-    ];
-  }
 
+      const idEvidenciaExperiencia =
+        item.id_experiencia_evidencia.toString();
+      const respuestasEvidencia =
+        respuestasPorEvidencia.get(idEvidenciaExperiencia) ?? [];
+      respuestasEvidencia.push(respuesta);
+      respuestasPorEvidencia.set(idEvidenciaExperiencia, respuestasEvidencia);
+    }
 
-  findOne(id: number) {
-    return {
-      id,
-      id_inscripcion: 101,
-      id_experiencia_evidencia: 201,
-      estado: 'aprobado',
-      fecha_calculo: '2026-10-26T10:45:00Z'
+    const documentos = evidenciasIncluidas.map((evidencia) => ({
+      id_inscripcion: idInscripcion,
+      id_experiencia_evidencia: evidencia._id,
+      estado: calcularEstadoResultado(
+        respuestasPorEvidencia.get(evidencia._id.toString()) ?? [],
+      ),
+      fecha_calculo: new Date(),
+    }));
+
+    if (documentos.length === 0) {
+      return [];
+    }
+
+    try {
+      return await this.resultadoModel.insertMany(documentos);
+    } catch (error) {
+      if (esIndiceUnicoDuplicado(error)) {
+        throw new ConflictException(
+          'Ya existen resultados para esta inscripción; los resultados históricos no se modifican.',
+        );
+      }
+
+      throw error;
     }
   }
 
-  update(id: number, updateResultadoDto: UpdateResultadoDto) {
-    return {
-      id: id,
-      updateResultadoDto,
+  async findOne(id: Types.ObjectId): Promise<ResultadoDocument> {
+    const resultado = await this.resultadoModel.findById(id).exec();
+    if (!resultado) {
+      throw new NotFoundException('Resultado no encontrado.');
     }
+
+    return resultado;
   }
 
-  remove(id: number) {
-    return {
-      id: id,
+  findPorInscripcion(
+    idInscripcion: Types.ObjectId,
+  ): Promise<ResultadoDocument[]> {
+    return this.inscripcionModel
+      .findById(idInscripcion)
+      .exec()
+      .then((inscripcion) => {
+        if (!inscripcion) {
+          throw new NotFoundException('Inscripción no encontrada.');
+        }
+
+        return this.resultadoModel
+          .find({ id_inscripcion: idInscripcion })
+          .exec();
+      });
+  }
+
+  async generarReporte(idExperiencia: Types.ObjectId) {
+    const experiencia = await this.experienciaModel
+      .findById(idExperiencia)
+      .exec();
+    if (!experiencia) {
+      throw new NotFoundException('Experiencia no encontrada.');
     }
+
+    const evidencias = await this.experienciaEvidenciaModel
+      .find({ id_experiencia: idExperiencia, incluida: true })
+      .exec();
+    const resultados = evidencias.length
+      ? await this.resultadoModel
+          .find({
+            id_experiencia_evidencia: {
+              $in: evidencias.map((evidencia) => evidencia._id),
+            },
+          })
+          .exec()
+      : [];
+    const resultadosPorEvidencia = new Map<string, Resultado[]>();
+
+    for (const resultado of resultados) {
+      const idEvidencia = resultado.id_experiencia_evidencia.toString();
+      const resultadosEvidencia =
+        resultadosPorEvidencia.get(idEvidencia) ?? [];
+      resultadosEvidencia.push(resultado);
+      resultadosPorEvidencia.set(idEvidencia, resultadosEvidencia);
+    }
+
+    return {
+      estado_por_evidencia: evidencias.map((evidencia) => {
+        const estados = resultadosPorEvidencia.get(evidencia._id.toString()) ?? [];
+        return {
+          id_experiencia_evidencia: evidencia._id,
+          muestra: estados.filter((resultado) => resultado.estado === 'muestra')
+            .length,
+          no_muestra: estados.filter(
+            (resultado) => resultado.estado === 'no_muestra',
+          ).length,
+          no_concluyente: estados.filter(
+            (resultado) => resultado.estado === 'no_concluyente',
+          ).length,
+        };
+      }),
+      // TODO(REPORTE): la fórmula de estado_general aún no está definida.
+      estado_general: null,
+    };
   }
 }

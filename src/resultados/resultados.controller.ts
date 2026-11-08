@@ -1,34 +1,69 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Types } from 'mongoose';
 import { ResultadosService } from './resultados.service.js';
-import { CreateResultadoDto } from './dto/create-resultado.dto.js';
-import { UpdateResultadoDto } from './dto/update-resultado.dto.js';
 
+@ApiTags('resultados')
 @Controller('resultados')
 export class ResultadosController {
   constructor(private readonly resultadosService: ResultadosService) {}
 
-  @Post()
-  create(@Body() createResultadoDto: CreateResultadoDto) {
-    return this.resultadosService.create(createResultadoDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.resultadosService.findAll();
-  }
-
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.resultadosService.findOne(+id);
+  @ApiParam({ name: 'id', description: 'ObjectId del resultado.' })
+  @ApiOkResponse({ description: 'Resultado encontrado.' })
+  @ApiBadRequestResponse({ description: 'El ID no es un ObjectId válido.' })
+  @ApiNotFoundResponse({ description: 'Resultado no encontrado.' })
+  findOne(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.resultadosService.findOne(id);
+  }
+}
+
+@ApiTags('resultados')
+@Controller('inscripciones')
+export class InscripcionesResultadosController {
+  constructor(private readonly resultadosService: ResultadosService) {}
+
+  @Post(':id/calcular-resultados')
+  @ApiParam({ name: 'id', description: 'ObjectId de la inscripción.' })
+  @ApiCreatedResponse({ description: 'Resultados calculados.' })
+  @ApiBadRequestResponse({ description: 'El ID no es un ObjectId válido.' })
+  @ApiNotFoundResponse({ description: 'Inscripción no encontrada.' })
+  @ApiConflictResponse({
+    description: 'Ya hay resultados históricos para esta inscripción.',
+  })
+  calcular(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.resultadosService.calcularPorInscripcion(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateResultadoDto: UpdateResultadoDto) {
-    return this.resultadosService.update(+id, updateResultadoDto);
+  @Get(':id/resultados')
+  @ApiParam({ name: 'id', description: 'ObjectId de la inscripción.' })
+  @ApiOkResponse({ description: 'Resultados de la inscripción.' })
+  @ApiBadRequestResponse({ description: 'El ID no es un ObjectId válido.' })
+  findPorInscripcion(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.resultadosService.findPorInscripcion(id);
   }
+}
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.resultadosService.remove(+id);
+@ApiTags('reportes')
+@Controller('experiencias')
+export class ExperienciasReportesController {
+  constructor(private readonly resultadosService: ResultadosService) {}
+
+  @Get(':id/reporte')
+  @ApiParam({ name: 'id', description: 'ObjectId de la experiencia.' })
+  @ApiOkResponse({ description: 'Reporte calculado de la experiencia.' })
+  @ApiBadRequestResponse({ description: 'El ID no es un ObjectId válido.' })
+  @ApiNotFoundResponse({ description: 'Experiencia no encontrada.' })
+  reporte(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+    return this.resultadosService.generarReporte(id);
   }
 }
