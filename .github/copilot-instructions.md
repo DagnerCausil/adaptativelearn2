@@ -11,4 +11,4 @@ Resumen de lo más importante:
 - Nada de datos quemados en los servicios; todo va a MongoDB.
 - Secretos solo en `.env` (`MONGODB_URI`).
 - Pruebas con Vitest (no Jest), mockeando el modelo con `getModelToken`.
-- Reglas sin definir (ADR-016, ADR-021, REPORTE): deja un `TODO` y no inventes la fórmula.
+- Las reglas del diagnóstico están en docs/modelo-v2.md sección 7; usa las constantes de src/common/umbrales.ts

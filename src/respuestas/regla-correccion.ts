@@ -7,8 +7,7 @@ export interface OpcionSeleccionada {
   grupo?: string;
 }
 
-// TODO(confirmar-profesor): ordering y matching son suposiciones del equipo;
-// el modelo v2 no define dónde se guarda la respuesta correcta de esos formatos.
+// Las reglas de ordering y matching fueron confirmadas por el profesor el 8 de noviembre de 2026.
 export function esCorrectaSingleChoice(opciones: OpcionSeleccionada[]): boolean {
   return opciones.length === 1 && opciones[0].es_correcta;
 }

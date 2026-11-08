@@ -42,9 +42,9 @@ Este repositorio es **solo el backend (API REST)**.
    vivas al borrar, `400` si falla una validación o una regla de negocio.
 8. **Secretos fuera del código.** La cadena de MongoDB va en `MONGODB_URI` dentro de `.env`.
    Nunca escribir usuarios, contraseñas ni claves en archivos `.ts`, ni en este archivo.
-9. **Reglas pendientes:** la parada de la secuencia adaptativa (ADR-016), el cálculo de
-   `resultados.estado` (ADR-021) y el `estado_general` del reporte **no están definidos**.
-   Deja un `TODO(ADR-016)` / `TODO(ADR-021)` / `TODO(REPORTE)` y no inventes la fórmula.
+9. **Reglas del diagnóstico:** la parada (ADR-016), el estado por evidencia (ADR-021), la corrección
+   de ordering/matching y el estado general del reporte ya están definidos en `docs/modelo-v2.md` §7.
+   Usa las constantes de `src/common/umbrales.ts`; nunca escribas los números sueltos en el código.
 10. **Cambios pequeños.** Un módulo o una regla por tarea. No reescribir módulos que no se pidieron.
 11. **Ramas.** Nunca hacer commit en `main`. Cada integrante trabaja en `feature/<parte>` y solo
     modifica las carpetas de su parte (más su línea en `app.module.ts`). Si una tarea exige tocar

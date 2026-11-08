@@ -12,6 +12,7 @@ import { Item } from '../items/schemas/item.schema.js';
 import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
 import { Respuesta } from '../respuestas/schemas/respuesta.schema.js';
 import { calcularEstadoResultado } from './regla-resultado.js';
+import { calcularEstadoGeneral } from './regla-reporte.js';
 import { Resultado, ResultadoDocument } from './schemas/resultado.schema.js';
 
 function esIndiceUnicoDuplicado(error: unknown): boolean {
@@ -68,12 +69,6 @@ export class ResultadosService {
     const presentaciones = await this.presentacionModel
       .find({ id_inscripcion: idInscripcion })
       .exec();
-    const presentacionPorItem = new Map(
-      presentaciones.map((presentacion) => [
-        presentacion.id_item.toString(),
-        presentacion._id,
-      ]),
-    );
     const presentacionIds = presentaciones.map(
       (presentacion) => presentacion._id,
     );
@@ -99,30 +94,36 @@ export class ResultadosService {
           .exec()
       : [];
     const itemsPorId = new Map(items.map((item) => [item._id.toString(), item]));
-    const respuestasPorEvidencia = new Map<string, Respuesta[]>();
+    const presentacionesPorEvidencia = new Map<
+      string,
+      { respuesta: Respuesta | null }[]
+    >();
 
-    for (const [idItem, idPresentacion] of presentacionPorItem) {
-      const item = itemsPorId.get(idItem);
-      const respuesta = respuestasPorPresentacion.get(
-        idPresentacion.toString(),
-      );
-      if (!item || !respuesta) {
+    for (const presentacion of presentaciones) {
+      const item = itemsPorId.get(presentacion.id_item.toString());
+      if (!item) {
         continue;
       }
 
       const idEvidenciaExperiencia =
         item.id_experiencia_evidencia.toString();
-      const respuestasEvidencia =
-        respuestasPorEvidencia.get(idEvidenciaExperiencia) ?? [];
-      respuestasEvidencia.push(respuesta);
-      respuestasPorEvidencia.set(idEvidenciaExperiencia, respuestasEvidencia);
+      const presentacionesEvidencia =
+        presentacionesPorEvidencia.get(idEvidenciaExperiencia) ?? [];
+      presentacionesEvidencia.push({
+        respuesta:
+          respuestasPorPresentacion.get(presentacion._id.toString()) ?? null,
+      });
+      presentacionesPorEvidencia.set(
+        idEvidenciaExperiencia,
+        presentacionesEvidencia,
+      );
     }
 
     const documentos = evidenciasIncluidas.map((evidencia) => ({
       id_inscripcion: idInscripcion,
       id_experiencia_evidencia: evidencia._id,
       estado: calcularEstadoResultado(
-        respuestasPorEvidencia.get(evidencia._id.toString()) ?? [],
+        presentacionesPorEvidencia.get(evidencia._id.toString()) ?? [],
       ),
       fecha_calculo: new Date(),
     }));
@@ -215,8 +216,9 @@ export class ResultadosService {
           ).length,
         };
       }),
-      // TODO(REPORTE): la fórmula de estado_general aún no está definida.
-      estado_general: null,
+      estado_general: calcularEstadoGeneral(
+        resultados.map((resultado) => resultado.estado),
+      ),
     };
   }
 }

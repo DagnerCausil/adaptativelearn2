@@ -1,5 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { FORMATO_ITEM } from '../../common/enums.js';
+import {
+  ESTADO_REVISION_ITEM,
+  FORMATO_ITEM,
+  ORIGEN_ITEM,
+} from '../../common/enums.js';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type ItemDocument = HydratedDocument<Item>;
@@ -19,11 +23,16 @@ export class Item {
   @Prop({ type: String, required: true, enum: FORMATO_ITEM })
   formato!: (typeof FORMATO_ITEM)[number];
 
-  @Prop({ type: String, required: true, maxlength: 30, trim: true })
-  origen!: string;
+  @Prop({ type: String, required: true, enum: ORIGEN_ITEM })
+  origen!: (typeof ORIGEN_ITEM)[number];
 
-  @Prop({ type: String, required: true, maxlength: 30, trim: true })
-  estado_revision!: string;
+  @Prop({
+    type: String,
+    required: true,
+    enum: ESTADO_REVISION_ITEM,
+    default: 'borrador',
+  })
+  estado_revision!: (typeof ESTADO_REVISION_ITEM)[number];
 
   @Prop({ type: Boolean, required: true, default: false })
   excluido!: boolean;
