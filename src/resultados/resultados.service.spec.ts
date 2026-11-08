@@ -117,9 +117,38 @@ describe('ResultadosService', () => {
     expect(resultados[0]).toMatchObject({
       id_inscripcion: idInscripcion,
       id_experiencia_evidencia: idExperienciaEvidencia,
-      estado: 'no_concluyente',
+      estado: 'muestra',
     });
     expect(resultados[0].fecha_calculo).toBeInstanceOf(Date);
+  });
+
+  it('keeps unanswered presentations when calculating evidence state', async () => {
+    mockInscripcionModel.findById.mockReturnValue(
+      consulta({ id_experiencia: idExperiencia }),
+    );
+    mockResultadoModel.exists.mockResolvedValue(null);
+    mockExperienciaEvidenciaModel.find.mockReturnValue(
+      consulta([{ _id: idExperienciaEvidencia }]),
+    );
+    mockPresentacionModel.find.mockReturnValue(
+      consulta([{ _id: idPresentacion, id_item: idItem }]),
+    );
+    mockRespuestaModel.find.mockReturnValue(consulta([]));
+    mockItemModel.find.mockReturnValue(
+      consulta([
+        {
+          _id: idItem,
+          id_experiencia_evidencia: idExperienciaEvidencia,
+        },
+      ]),
+    );
+    mockResultadoModel.insertMany.mockImplementation(async (resultados) =>
+      resultados,
+    );
+
+    const resultados = await service.calcularPorInscripcion(idInscripcion);
+
+    expect(resultados[0].estado).toBe('no_concluyente');
   });
 
   it('returns conflict when recalculating an inscription with existing results', async () => {
@@ -179,7 +208,7 @@ describe('ResultadosService', () => {
           no_concluyente: 1,
         },
       ],
-      estado_general: null,
+      estado_general: 'en_proceso',
     });
     expect(mockResultadoModel.insertMany).not.toHaveBeenCalled();
   });

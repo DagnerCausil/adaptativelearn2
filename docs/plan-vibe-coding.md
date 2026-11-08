@@ -28,13 +28,14 @@ Cómo construir el backend del modelo v2 desde VS Code con un asistente de IA en
 | Paso | Rama | Colecciones | Quién |
 |------|------|-------------|-------|
 | 1 | `feature/configuracion-base` | Fase 0 y Fase 0B (esquemas de las 14 colecciones) | 1 integrante, **antes que todos** |
-| 2 | `feature/actores` | docentes, estudiantes | Integrante 1 |
+| 2 | `feature/actores` | docentes, estudiantes | Integrante 1 · **hecha** |
 | 2 | `feature/curriculo` | dbas, evidencias, dictamenes_evidencia + seed | Integrante 2 |
 | 2 | `feature/experiencias` | experiencias, experiencias_evidencias | Integrante 3 |
 | 2 | `feature/banco` | items, opciones | Integrante 4 |
 | 2 | `feature/inscripciones` | inscripciones, presentaciones | Integrante 5 |
-| 3 | `feature/respuestas` | respuestas, respuestas_opciones | El primero que termine el paso 2 |
-| 3 | `feature/resultados` | resultados y reporte | El segundo que termine el paso 2 |
+| 3 | `feature/respuestas` | respuestas, respuestas_opciones | **Hecha** |
+| 3 | `feature/resultados` | resultados y reporte | **Hecha** |
+| 3 | `feature/reglas-diagnostico` | reglas del profesor (§7 de modelo-v2) en respuestas, resultados y reporte; enums de ítems | **Hecha** |
 | 4 | `feature/cierre` | Fase 8: test e2e y README | Todo el equipo |
 
 El paso 1 deja creados los **esquemas** de las 14 colecciones. Así, en el paso 2 cada uno trabaja
@@ -157,57 +158,72 @@ Verificación:
 ## Fase 3 · Autoría: experiencias y experiencias_evidencias
 
 ```
-Crea los módulos experiencias y experiencias_evidencias (docs/modelo-v2.md Vista 2 y §4):
+Lee AGENTS.md y docs/modelo-v2.md. Crea los módulos experiencias y experiencias_evidencias
+siguiendo el patrón de src/docentes (docs/modelo-v2.md Vista 2 y §4):
 - Al crear una experiencia: estado "borrador", fecha_creacion automática y codigo_invitacion
   único de 8 caracteres generado por el servidor (no viene del cliente).
 - POST /experiencias/:id/publicar: solo si tiene al menos una experiencias_evidencias con
   incluida = true; pone estado "publicada" y fecha_publicacion. Si no cumple, 400.
-- experiencias_evidencias: índice único { id_experiencia, id_evidencia }; validar que la
-  evidencia pertenezca al mismo DBA de la experiencia.
+- experiencias_evidencias: índice único { id_experiencia, id_evidencia }. La evidencia DEBE
+  pertenecer al mismo DBA de la experiencia (decisión del profesor); si no, 400.
 - GET /experiencias/:id/evidencias lista las evidencias seleccionadas con populate.
-Agrega tests para la regla de publicación.
+Agrega tests para la regla de publicación y para la coherencia de DBA.
 ```
 
 Verificación:
 - [ ] Publicar sin evidencias da 400; con una evidencia incluida, publica
+- [ ] Seleccionar una evidencia de otro DBA da 400
 - [ ] El código de invitación nunca se repite
 
 ## Fase 4 · Banco de diagnóstico: items y opciones
 
 ```
-Reescribe src/items y crea src/opciones según docs/modelo-v2.md Vista 3 y §4:
+Lee AGENTS.md y docs/modelo-v2.md. Reescribe src/items y crea src/opciones siguiendo el
+patrón de src/docentes (docs/modelo-v2.md Vista 3, §4 y §7):
 - items cuelga de id_experiencia_evidencia (no de experiencia y evidencia por separado).
-- formato usa el enum FORMATO_ITEM. origen y estado_revision quedan como texto (máx. 30).
+- formato usa FORMATO_ITEM; origen usa ORIGEN_ITEM ('docente' | 'ia'); estado_revision usa
+  ESTADO_REVISION_ITEM ('borrador' | 'aprobado' | 'rechazado'), por defecto 'borrador'.
+- PATCH /items/:id/revision con { estado_revision } para que el docente apruebe o rechace (control docente).
 - GET /items/:id/opciones devuelve las opciones ordenadas por "orden".
 - Implementa la validación RI-4 en un método validarOpciones(idItem) del servicio de items:
   single_choice ≥ 2 opciones y exactamente 1 correcta; ordering ≥ 2;
   matching ≥ 4 con al menos 2 "izquierda" y 2 "derecha". grupo solo en matching.
-- Llama esa validación al publicar la experiencia (fase 3) para todos sus ítems no excluidos.
+- Llama esa validación al publicar la experiencia (fase 3) para sus ítems aprobados y no excluidos.
 Tests para cada caso de RI-4.
 ```
 
 Verificación:
 - [ ] Un `matching` con 3 opciones impide publicar la experiencia
 - [ ] Los valores viejos (`opcion_multiple`, `abierto`) ya no existen en el código
+- [ ] Un ítem nuevo queda en `borrador` y solo cambia a `aprobado` o `rechazado` con PATCH /items/:id/revision
 
 ## Fase 5 · Inscripción y entrega: inscripciones y presentaciones
 
 ```
-Reescribe src/inscripciones y crea src/presentaciones (docs/modelo-v2.md Vista 4 y §4):
+Lee AGENTS.md y docs/modelo-v2.md. Reescribe src/inscripciones y crea src/presentaciones
+siguiendo el patrón de src/docentes (docs/modelo-v2.md Vista 4, §4 y §7):
 - POST /inscripciones/unirse con { id_estudiante, codigo_invitacion }: busca la experiencia
   publicada por código y crea la inscripción. 404 si el código no existe, 400 si está en
   borrador, 409 si el estudiante ya estaba inscrito.
 - presentaciones: índice único { id_inscripcion, id_item }; orden_presentacion consecutivo.
-- POST /inscripciones/:id/siguiente-item devuelve el próximo ítem a mostrar y registra la
-  presentación. Implementa solo los límites de ADR-016 (mínimo 4, tope 6) y deja la regla de
-  parada por certeza como TODO(ADR-016) con un comentario; no la inventes.
+- POST /inscripciones/:id/siguiente-item devuelve el próximo ítem a mostrar (con sus opciones, SIN
+  es_correcta ni hipotesis_error) y registra la presentación. Reglas:
+  * Solo ítems de esa experiencia con estado_revision = 'aprobado' y excluido = false, no presentados aún.
+  * Reparte los ítems entre las evidencias incluidas (uno de cada evidencia por turno).
+  * Si el último ítem presentado no tiene respuesta, 409 (primero debe responderlo).
+  * ADR-016 (§7): con 4 ítems respondidos, si los 4 son correctos y con certeza >= CERTEZA_ALTA_PARADA,
+    responde { terminado: true }. Si no, sigue hasta ITEMS_MAXIMOS (6) o hasta que no queden ítems.
+  * La decisión de parar va aislada en src/presentaciones/regla-parada.ts usando src/common/umbrales.ts.
+Tests de la regla de parada (para a los 4 / sigue hasta 6) y del reparto por evidencia.
 ```
 
 Verificación:
 - [ ] Un estudiante no puede inscribirse dos veces a la misma experiencia
 - [ ] Nunca se presentan más de 6 ítems por inscripción
+- [ ] Con 4 respuestas correctas y certeza 4 o 5, el diagnóstico termina en el 4.º ítem
+- [ ] Al estudiante nunca le llega `es_correcta` ni `hipotesis_error`
 
-## Fase 6 · Captura de la respuesta: respuestas y respuestas_opciones
+## Fase 6 · Captura de la respuesta: respuestas y respuestas_opciones (hecha)
 
 ```
 Crea src/respuestas y src/respuestas_opciones (docs/modelo-v2.md Vista 5 y §4):
@@ -224,7 +240,7 @@ Verificación:
 - [ ] Enviar `correcta` en el cuerpo da 400 (no está en el DTO)
 - [ ] Responder dos veces la misma presentación da 409
 
-## Fase 7 · Conclusión: resultados y reporte
+## Fase 7 · Conclusión: resultados y reporte (hecha)
 
 ```
 Reescribe src/resultados (docs/modelo-v2.md Vista 6, §4 y §5):
@@ -256,13 +272,17 @@ Verificación:
 
 ---
 
-## Decisiones que el equipo debe tomar (no se las pidan a la IA)
+## Decisiones tomadas (respuesta del profesor, 8 de noviembre de 2026)
 
-| Pendiente | Dónde aparece | Quién decide |
-|-----------|---------------|--------------|
-| Regla de parada por certeza de la secuencia adaptativa | `TODO(ADR-016)` | Equipo + profesor |
-| Regla que convierte respuestas en `muestra` / `no_muestra` / `no_concluyente` | `TODO(ADR-021)` | Equipo + profesor |
-| Fórmula de `estado_general` del reporte | `TODO(REPORTE)` | Equipo |
-| Valores permitidos de `items.origen` y `items.estado_revision` | Fase 4 | Equipo |
-| Si una evidencia seleccionada debe ser del mismo DBA de la experiencia | Fase 3 | Profesor |
-| DBA y evidencias reales para el piloto | `src/seed/data/dbas.json` | Equipo |
+El detalle y los umbrales están en `docs/modelo-v2.md` §7 y en `src/common/umbrales.ts`.
+
+| Tema | Decisión | Dónde se aplica |
+|------|----------|-----------------|
+| Parada del diagnóstico (ADR-016) | 4 correctas con certeza ≥ 4 → para; si no, hasta 6 | Fase 5 · `regla-parada.ts` |
+| Estado por evidencia (ADR-021) | Todas correctas con certeza ≥ 3 → muestra; todas incorrectas → no_muestra; resto o incompleto → no_concluyente | `regla-resultado.ts` |
+| Corrección de ordering y matching | Por el campo `orden` (confirmado) | `regla-correccion.ts` |
+| Estado general del reporte | ≥ 80 % muestra → logrado; predomina no_muestra → requiere_refuerzo; resto → en_proceso | Reporte |
+| Evidencias de otro DBA | No se permiten (400) | Fase 3 |
+| `origen` / `estado_revision` | `docente`, `ia` / `borrador`, `aprobado`, `rechazado` | Fase 4 |
+
+Pendiente del equipo: cargar en `src/seed/data/dbas.json` los DBA y evidencias reales del piloto.

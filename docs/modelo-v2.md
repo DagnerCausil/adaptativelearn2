@@ -35,6 +35,8 @@ export const ESTADO_EXPERIENCIA = ['borrador', 'publicada'] as const;
 export const FORMATO_ITEM       = ['single_choice', 'matching', 'ordering'] as const;
 export const GRUPO_OPCION       = ['izquierda', 'derecha'] as const;
 export const ESTADO_RESULTADO   = ['muestra', 'no_muestra', 'no_concluyente'] as const;
+export const ORIGEN_ITEM        = ['docente', 'ia'] as const;                       // decisión del profesor
+export const ESTADO_REVISION_ITEM = ['borrador', 'aprobado', 'rechazado'] as const; // decisión del profesor
 ```
 
 Ubicación sugerida: `src/common/enums.ts`. No inventar otros valores (por ejemplo, `aprobado` /
@@ -118,12 +120,12 @@ pregunta cerrada (ADR-006, pendiente del censo QA-014). Relación 1:1 opcional c
 | id_experiencia_evidencia | ObjectId | required, ref `ExperienciaEvidencia`     |
 | enunciado                | String   | required                                 |
 | formato                  | String   | required, enum `FORMATO_ITEM`            |
-| origen                   | String   | required, maxlength 30                   |
-| estado_revision          | String   | required, maxlength 30                   |
+| origen                   | String   | required, enum `ORIGEN_ITEM`             |
+| estado_revision          | String   | required, enum `ESTADO_REVISION_ITEM`, default `borrador` |
 | excluido                 | Boolean  | required, default `false`                |
 
-> `origen` y `estado_revision` son texto libre en el modelo (varchar 30). El equipo debe fijar la
-> lista de valores permitidos antes de implementarlos; mientras tanto no se convierten en enum.
+> `origen` y `estado_revision` son varchar(30) en el modelo v2; sus valores los fijó el profesor
+> (ver §7). `origen = 'ia'` marca ítems generados por IA, que el docente debe aprobar (control docente).
 
 **`opciones`**
 
@@ -147,7 +149,7 @@ pregunta cerrada (ADR-006, pendiente del censo QA-014). Relación 1:1 opcional c
 | fecha_union    | Date     | required, default `Date.now` |
 
 Índice único recomendado: `{ id_estudiante: 1, id_experiencia: 1 }` (un estudiante no se inscribe
-dos veces a la misma experiencia; confirmar con el profesor).
+dos veces a la misma experiencia; decisión del equipo).
 
 **`presentaciones`** — El hecho de **mostrar** un ítem (distinto de responderlo; hallazgos H-2 y H-3).
 
@@ -200,15 +202,17 @@ dos veces a la misma experiencia; confirmar con el profesor).
 |----------|-------|-----------------|
 | ADR-005  | El banco de ítems es **por experiencia**: un ítem nunca se comparte entre experiencias, aunque usen el mismo DBA. | `items` (crear) |
 | H-4 / participación (1,N) | Una experiencia **no se puede publicar** si no tiene al menos una `experiencias_evidencias` con `incluida = true`. | `experiencias` (publicar) |
-| Coherencia DBA | Al seleccionar una evidencia para una experiencia, la evidencia debería pertenecer al mismo DBA de la experiencia. *Validación recomendada; confirmar con el profesor.* | `experiencias_evidencias` (crear) |
+| Coherencia DBA | Al seleccionar una evidencia para una experiencia, la evidencia **debe** pertenecer al mismo DBA de la experiencia; si no, `400`. *Confirmado por el profesor (MODESEC).* | `experiencias_evidencias` (crear) |
 | RI-4 / H-9 | Mínimo de opciones por formato: `single_choice` ≥ 2 con exactamente 1 correcta; `ordering` ≥ 2; `matching` ≥ 4 con al menos 2 en `izquierda` y 2 en `derecha`. `grupo` solo se usa en `matching`. | `items` (al publicar la experiencia o al cerrar el ítem) |
 | ADR-020 | `hipotesis_error` vive en la opción, no en el ítem. | `opciones` |
-| ADR-016 | Secuencia adaptativa del diagnóstico: **mínimo 4 ítems, tope 6**; sigue o para según la certeza de lo que va respondiendo. **La regla exacta de parada aún no está escrita: no inventarla**, dejar un `TODO(ADR-016)` y pedírsela al equipo. | `presentaciones` (siguiente ítem) |
+| ADR-016 | Secuencia adaptativa: **mínimo 4 ítems, tope 6**. Al completar el 4.º ítem respondido, si los 4 son correctos y todos con `certeza >= CERTEZA_ALTA_PARADA` (4), el diagnóstico **se detiene** (dominio suficiente). Si no, continúa hasta 6. Ver §7. | `presentaciones` (siguiente ítem) |
 | H-2/H-3 | Una presentación sin respuesta es válida y significa "se le mostró y no respondió". | `presentaciones` / `respuestas` |
 | registra 1:1 | Una presentación tiene **a lo sumo una** respuesta (`id_presentacion` único). | `respuestas` |
 | derivado | `respuestas.correcta` **nunca** viene del cliente: se calcula comparando las opciones seleccionadas y su `valor_dado` con las opciones del ítem. | `respuestas` (crear) |
+| Corrección | `ordering`: correcta si cada `valor_dado` coincide con el `orden` de su opción. `matching`: correcta si cada pareja formada (mismo `valor_dado`) tiene una opción `izquierda` y una `derecha` con el mismo `orden`. *Confirmado por el profesor.* | `respuestas` (`regla-correccion.ts`) |
+| Control docente | Solo se presentan al estudiante ítems con `estado_revision = 'aprobado'` y `excluido = false`. La validación RI-4 al publicar aplica a esos ítems. | `presentaciones`, `experiencias` (publicar) |
 | ADR-019 | `valor_dado` = posición asignada (`ordering`) o número de pareja (`matching`). | `respuestas_opciones` |
-| ADR-021 | `resultados.estado` se calcula a partir de las respuestas y **se guarda** con su `fecha_calculo`. Un resultado histórico **no se modifica**: si se recalcula, se crea uno nuevo o se reemplaza explícitamente, nunca con `PATCH`. Valores: `muestra` / `no_muestra` / `no_concluyente`. **Nunca un puntaje ni una nota.** La regla de cálculo es versionable y aún debe definirse: `TODO(ADR-021)`. | `resultados` |
+| ADR-021 | `resultados.estado` se calcula a partir de las respuestas y **se guarda** con su `fecha_calculo`. Un resultado histórico **no se modifica** (409 si ya existe; sin `PATCH`). Regla por evidencia, ver §7. **Nunca un puntaje ni una nota.** | `resultados` |
 | ADR-006 | `dictamenes_evidencia` es criterio propio, separado del dato oficial del MEN. No mezclar sus campos dentro de `evidencias`. | `dictamenes_evidencia` |
 | Dato oficial | `dbas` y `evidencias` se cargan por *seed* desde los documentos del MEN; los endpoints de escritura de estas colecciones son solo para administración. | `dbas`, `evidencias` |
 
@@ -218,7 +222,9 @@ Endpoint: `GET /experiencias/:id/reporte`. Se calcula al consultarlo a partir de
 
 - `estado_por_evidencia`: para cada `experiencias_evidencias` incluida, conteo de inscripciones
   en `muestra`, `no_muestra` y `no_concluyente`.
-- `estado_general`: resumen de la experiencia. La fórmula aún no está definida: `TODO(REPORTE)`.
+- `estado_general`: agregación de todos los resultados de la experiencia (ver §7): `logrado`,
+  `requiere_refuerzo` o `en_proceso`. Si aún no hay resultados, `en_proceso`.
+  Estos valores existen solo en el reporte calculado: no son un enum del modelo ni se guardan.
 
 No crear colección, esquema ni módulo CRUD para reportes.
 
@@ -227,3 +233,40 @@ No crear colección, esquema ni módulo CRUD para reportes.
 - No se permite borrar un documento que tenga referencias vivas (por ejemplo, un docente con
   experiencias, una experiencia con inscripciones, un ítem con presentaciones). Responder `409 Conflict`.
 - `resultados` y `respuestas` no tienen `PATCH` ni `DELETE` públicos.
+
+## 7. Reglas definidas por el profesor (8 de noviembre de 2026)
+
+El profesor definió los criterios y dio libertad al equipo para fijar los umbrales y ajustarlos tras las
+pruebas con usuarios. Los números van como **constantes en `src/common/umbrales.ts`**; no se escriben
+sueltos en el código.
+
+```ts
+export const CERTEZA_ALTA_PARADA = 4;  // ADR-016: "certeza alta (CRI >= 4)", palabras del profesor
+export const CERTEZA_ADECUADA = 3;     // ADR-021: Hasan et al. (1999) usan 2,5 como corte entre adivinar y estar seguro
+export const ITEMS_MINIMOS = 4;        // ADR-016
+export const ITEMS_MAXIMOS = 6;        // ADR-016
+export const UMBRAL_LOGRADO = 0.8;     // Reporte: "todas o la gran mayoría" = 80 %
+```
+
+**ADR-016 · Parada del diagnóstico.** Cuando la inscripción tiene 4 ítems presentados y respondidos:
+si los 4 son `correcta = true` y todos con `certeza >= CERTEZA_ALTA_PARADA`, no se presentan más ítems.
+En cualquier otro caso se siguen presentando ítems hasta `ITEMS_MAXIMOS`.
+
+**ADR-021 · Estado por evidencia.** Se toman las presentaciones de la inscripción cuyos ítems
+pertenecen a esa `experiencias_evidencias`:
+
+1. Sin presentaciones, o con algún ítem presentado sin respuesta → `no_concluyente` (incompleto).
+2. Todas las respuestas correctas y todas con `certeza >= CERTEZA_ADECUADA` → `muestra`.
+3. Todas las respuestas incorrectas → `no_muestra` (falla consistente). Si además la certeza es
+   `>= CERTEZA_ADECUADA`, es un error conceptual en el sentido de Hasan et al. (alta seguridad en una
+   respuesta errada); la `hipotesis_error` de las opciones elegidas explica cuál.
+4. Cualquier otra combinación (mixtas, o correctas con certeza baja) → `no_concluyente`.
+
+**Reporte · `estado_general`.** Sobre todos los resultados de la experiencia:
+
+- `muestra / total >= UMBRAL_LOGRADO` → `logrado`.
+- Si no, y `no_muestra` es el grupo mayor (más que `muestra` y más que `no_concluyente`) → `requiere_refuerzo`.
+- En cualquier otro caso (o sin resultados) → `en_proceso`.
+
+**Corrección de `ordering` y `matching`**, **coherencia DBA** y **valores de `origen` / `estado_revision`**:
+ver §2 y §4.
