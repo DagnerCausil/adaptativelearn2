@@ -8,6 +8,7 @@ import { DocentesModule } from './docentes/docentes.module.js';
 import { EstudiantesModule } from './estudiantes/estudiantes.module.js';
 import { ResultadosModule } from './resultados/resultados.module.js';
 import { InscripcionesModule } from './inscripciones/inscripciones.module.js';
+import { RespuestasModule } from './respuestas/respuestas.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { InscripcionesModule } from './inscripciones/inscripciones.module.js';
     EstudiantesModule,
     ResultadosModule,
     InscripcionesModule,
+    RespuestasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
