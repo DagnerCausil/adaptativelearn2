@@ -19,7 +19,9 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "seed": "nest build && node --env-file=.env dist/seed/seed.js",
+    "importar:dbas": "node src/seed/importar-dbas-men.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

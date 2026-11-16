@@ -9,6 +9,9 @@ import { EstudiantesModule } from './estudiantes/estudiantes.module.js';
 import { ResultadosModule } from './resultados/resultados.module.js';
 import { InscripcionesModule } from './inscripciones/inscripciones.module.js';
 import { RespuestasModule } from './respuestas/respuestas.module.js';
+import { DbasModule } from './dbas/dbas.module.js';
+import { EvidenciasModule } from './evidencias/evidencias.module.js';
+import { DictamenesEvidenciaModule } from './dictamenes_evidencia/dictamenes-evidencia.module.js';
 
 @Module({
   imports: [
@@ -25,6 +28,9 @@ import { RespuestasModule } from './respuestas/respuestas.module.js';
     ResultadosModule,
     InscripcionesModule,
     RespuestasModule,
+    DbasModule,
+    EvidenciasModule,
+    DictamenesEvidenciaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
