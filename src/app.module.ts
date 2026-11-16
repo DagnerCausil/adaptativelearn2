@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ItemsModule } from './items/items.module.js';
+import { OpcionesModule } from './opciones/opciones.module.js';
 import { DocentesModule } from './docentes/docentes.module.js';
 import { EstudiantesModule } from './estudiantes/estudiantes.module.js';
 import { ResultadosModule } from './resultados/resultados.module.js';
@@ -20,6 +21,7 @@ import { RespuestasModule } from './respuestas/respuestas.module.js';
       }),
     }),
     ItemsModule,
+    OpcionesModule,
     DocentesModule,
     EstudiantesModule,
     ResultadosModule,
