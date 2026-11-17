@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import type { Connection } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { FORMATO_ITEM } from '../common/enums.js';
 import { Item } from '../items/schemas/item.schema.js';
 import { Opcion } from '../opciones/schemas/opcion.schema.js';
