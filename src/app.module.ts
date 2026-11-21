@@ -13,6 +13,8 @@ import { RespuestasModule } from './respuestas/respuestas.module.js';
 import { DbasModule } from './dbas/dbas.module.js';
 import { EvidenciasModule } from './evidencias/evidencias.module.js';
 import { DictamenesEvidenciaModule } from './dictamenes_evidencia/dictamenes-evidencia.module.js';
+import { ExperienciasModule } from './experiencias/experiencias.module.js';
+import { ExperienciasEvidenciasModule } from './experiencias_evidencias/experiencias-evidencias.module.js';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { DictamenesEvidenciaModule } from './dictamenes_evidencia/dictamenes-evi
     DbasModule,
     EvidenciasModule,
     DictamenesEvidenciaModule,
+    ExperienciasModule,
+    ExperienciasEvidenciasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
