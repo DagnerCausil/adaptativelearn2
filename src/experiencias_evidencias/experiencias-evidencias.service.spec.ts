@@ -27,11 +27,16 @@ describe('ExperienciasEvidenciasService', () => {
   const mockEvidenciaModel = { findById: vi.fn() };
   let service: ExperienciasEvidenciasService;
 
-  function experienciaExiste(existe = true) {
+  function experienciaExiste(
+    existe = true,
+    estado: 'borrador' | 'publicada' = 'borrador',
+  ) {
     mockExperienciaModel.findById.mockReturnValue({
       exec: vi
         .fn()
-        .mockResolvedValue(existe ? { _id: idExperiencia, id_dba: idDba } : null),
+        .mockResolvedValue(
+          existe ? { _id: idExperiencia, id_dba: idDba, estado } : null,
+        ),
     });
   }
 
@@ -115,6 +120,18 @@ describe('ExperienciasEvidenciasService', () => {
         ConflictException,
       );
     });
+
+    it('400 si la experiencia no está en borrador', async () => {
+      experienciaExiste(true, 'publicada');
+
+      await expect(service.seleccionar(idExperiencia, dto)).rejects.toThrow(
+        new BadRequestException(
+          'Solo se pueden cambiar las evidencias de una experiencia en borrador',
+        ),
+      );
+      expect(mockEvidenciaModel.findById).not.toHaveBeenCalled();
+      expect(mockSeleccionModel.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('listar', () => {
@@ -148,6 +165,7 @@ describe('ExperienciasEvidenciasService', () => {
 
   describe('cambiarInclusion', () => {
     it('excluye una selección de la experiencia', async () => {
+      experienciaExiste();
       const actualizada = { _id: idSeleccion, incluida: false };
       mockSeleccionModel.findOneAndUpdate.mockReturnValue({
         exec: vi.fn().mockResolvedValue(actualizada),
@@ -164,6 +182,7 @@ describe('ExperienciasEvidenciasService', () => {
     });
 
     it('404 si la selección no es de esa experiencia', async () => {
+      experienciaExiste();
       mockSeleccionModel.findOneAndUpdate.mockReturnValue({
         exec: vi.fn().mockResolvedValue(null),
       });
@@ -171,6 +190,28 @@ describe('ExperienciasEvidenciasService', () => {
       await expect(
         service.cambiarInclusion(idExperiencia, idSeleccion, { incluida: true }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('404 si la experiencia no existe', async () => {
+      experienciaExiste(false);
+
+      await expect(
+        service.cambiarInclusion(idExperiencia, idSeleccion, { incluida: true }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockSeleccionModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('400 si la experiencia no está en borrador', async () => {
+      experienciaExiste(true, 'publicada');
+
+      await expect(
+        service.cambiarInclusion(idExperiencia, idSeleccion, { incluida: false }),
+      ).rejects.toThrow(
+        new BadRequestException(
+          'Solo se pueden cambiar las evidencias de una experiencia en borrador',
+        ),
+      );
+      expect(mockSeleccionModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
   });
 });
