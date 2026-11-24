@@ -64,9 +64,11 @@ export class DbasController {
   @Patch(':id')
   @ApiParam({ name: 'id', description: 'ObjectId del DBA.' })
   @ApiOkResponse({ description: 'DBA actualizado.' })
-  @ApiBadRequestResponse({ description: 'El ID o los datos no son válidos.' })
+  @ApiBadRequestResponse({
+    description:
+      'El ID o los datos no son válidos; codigo no se puede cambiar.',
+  })
   @ApiNotFoundResponse({ description: 'DBA no encontrado.' })
-  @ApiConflictResponse({ description: 'El código del DBA ya está registrado.' })
   update(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @Body() updateDbaDto: UpdateDbaDto,

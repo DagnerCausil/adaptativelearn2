@@ -68,25 +68,17 @@ export class DbasService {
     id: Types.ObjectId,
     updateDbaDto: UpdateDbaDto,
   ): Promise<DbaDocument> {
-    try {
-      const dba = await this.dbaModel
-        .findByIdAndUpdate(id, updateDbaDto, {
-          new: true,
-          runValidators: true,
-        })
-        .exec();
-      if (!dba) {
-        throw new NotFoundException('DBA no encontrado.');
-      }
-
-      return dba;
-    } catch (error) {
-      if (esErrorDeDuplicado(error)) {
-        throw new ConflictException('El código del DBA ya está registrado.');
-      }
-
-      throw error;
+    const dba = await this.dbaModel
+      .findByIdAndUpdate(id, updateDbaDto, {
+        new: true,
+        runValidators: true,
+      })
+      .exec();
+    if (!dba) {
+      throw new NotFoundException('DBA no encontrado.');
     }
+
+    return dba;
   }
 
   async remove(id: Types.ObjectId): Promise<DbaDocument> {

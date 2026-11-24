@@ -119,20 +119,13 @@ describe('DbasService', () => {
     );
   });
 
-  it('throws 404 or 409 on update', async () => {
+  it('throws 404 on update of a missing DBA', async () => {
     mockDbaModel.findByIdAndUpdate.mockReturnValue({
       exec: vi.fn().mockResolvedValue(null),
     });
     await expect(service.update(id, {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
-
-    mockDbaModel.findByIdAndUpdate.mockReturnValue({
-      exec: vi.fn().mockRejectedValue({ code: 11000 }),
-    });
-    await expect(
-      service.update(id, { codigo: 'REPETIDO' }),
-    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('removes a DBA without evidencias or experiencias', async () => {

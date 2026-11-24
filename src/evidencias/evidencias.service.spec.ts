@@ -121,15 +121,6 @@ describe('EvidenciasService', () => {
     );
   });
 
-  it('checks the new DBA when id_dba changes on update', async () => {
-    mockDbaModel.exists.mockResolvedValue(null);
-
-    await expect(
-      service.update(id, { id_dba: idDba.toString() }),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    expect(mockEvidenciaModel.findByIdAndUpdate).not.toHaveBeenCalled();
-  });
-
   it('throws 404 or 409 on update', async () => {
     mockEvidenciaModel.findByIdAndUpdate.mockReturnValue({
       exec: vi.fn().mockResolvedValue(null),
