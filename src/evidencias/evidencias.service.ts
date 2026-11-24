@@ -81,16 +81,9 @@ export class EvidenciasService {
     id: Types.ObjectId,
     updateEvidenciaDto: UpdateEvidenciaDto,
   ): Promise<EvidenciaDocument> {
-    const { id_dba, ...resto } = updateEvidenciaDto;
-    const cambios: Partial<Evidencia> = { ...resto };
-    if (id_dba !== undefined) {
-      cambios.id_dba = new Types.ObjectId(id_dba);
-      await this.verificarDba(cambios.id_dba);
-    }
-
     try {
       const evidencia = await this.evidenciaModel
-        .findByIdAndUpdate(id, cambios, {
+        .findByIdAndUpdate(id, updateEvidenciaDto, {
           new: true,
           runValidators: true,
         })

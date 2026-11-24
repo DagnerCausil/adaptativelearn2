@@ -60,8 +60,11 @@ export class EvidenciasController {
   @Patch(':id')
   @ApiParam({ name: 'id', description: 'ObjectId de la evidencia.' })
   @ApiOkResponse({ description: 'Evidencia actualizada.' })
-  @ApiBadRequestResponse({ description: 'El ID o los datos no son válidos.' })
-  @ApiNotFoundResponse({ description: 'La evidencia o el DBA no existen.' })
+  @ApiBadRequestResponse({
+    description:
+      'El ID o los datos no son válidos; id_dba no se puede cambiar.',
+  })
+  @ApiNotFoundResponse({ description: 'Evidencia no encontrada.' })
   @ApiConflictResponse({
     description: 'Ya existe una evidencia con ese número en el mismo DBA.',
   })
