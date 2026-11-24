@@ -9,6 +9,7 @@ import { Types } from 'mongoose';
 import { Estudiante } from '../estudiantes/schemas/estudiante.schema.js';
 import { Experiencia } from '../experiencias/schemas/experiencia.schema.js';
 import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
+import { Resultado } from '../resultados/schemas/resultado.schema.js';
 import { InscripcionesService } from './inscripciones.service.js';
 import { Inscripcion } from './schemas/inscripcion.schema.js';
 
@@ -35,6 +36,7 @@ describe('InscripcionesService', () => {
   const mockEstudianteModel = { exists: vi.fn() };
   const mockExperienciaModel = { findOne: vi.fn() };
   const mockPresentacionModel = { exists: vi.fn() };
+  const mockResultadoModel = { exists: vi.fn() };
   let service: InscripcionesService;
 
   const experienciaCon = (estado: string) => ({
@@ -61,6 +63,10 @@ describe('InscripcionesService', () => {
         {
           provide: getModelToken(Presentacion.name),
           useValue: mockPresentacionModel,
+        },
+        {
+          provide: getModelToken(Resultado.name),
+          useValue: mockResultadoModel,
         },
       ],
     }).compile();
@@ -167,15 +173,37 @@ describe('InscripcionesService', () => {
     expect(mockInscripcionModel.findByIdAndDelete).not.toHaveBeenCalled();
   });
 
-  it('borra una inscripción sin presentaciones', async () => {
+  it('no borra una inscripción con resultados calculados (409)', async () => {
     mockInscripcionModel.findById.mockReturnValue({
       exec: vi.fn().mockResolvedValue(inscripcion),
     });
     mockPresentacionModel.exists.mockResolvedValue(null);
+    mockResultadoModel.exists.mockResolvedValue({
+      _id: new Types.ObjectId(),
+    });
+
+    await expect(service.remove(idInscripcion)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(mockResultadoModel.exists).toHaveBeenCalledWith({
+      id_inscripcion: idInscripcion,
+    });
+    expect(mockInscripcionModel.findByIdAndDelete).not.toHaveBeenCalled();
+  });
+
+  it('borra una inscripción sin presentaciones ni resultados', async () => {
+    mockInscripcionModel.findById.mockReturnValue({
+      exec: vi.fn().mockResolvedValue(inscripcion),
+    });
+    mockPresentacionModel.exists.mockResolvedValue(null);
+    mockResultadoModel.exists.mockResolvedValue(null);
     mockInscripcionModel.findByIdAndDelete.mockReturnValue({
       exec: vi.fn().mockResolvedValue(inscripcion),
     });
 
     await expect(service.remove(idInscripcion)).resolves.toBe(inscripcion);
+    expect(mockInscripcionModel.findByIdAndDelete).toHaveBeenCalledWith(
+      idInscripcion,
+    );
   });
 });

@@ -9,6 +9,7 @@ import { Model, Types } from 'mongoose';
 import { Estudiante } from '../estudiantes/schemas/estudiante.schema.js';
 import { Experiencia } from '../experiencias/schemas/experiencia.schema.js';
 import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
+import { Resultado } from '../resultados/schemas/resultado.schema.js';
 import { CreateInscripcionDto } from './dto/create-inscripcion.dto.js';
 import { FiltroInscripcionesDto } from './dto/filtro-inscripciones.dto.js';
 import {
@@ -36,6 +37,8 @@ export class InscripcionesService {
     private readonly experienciaModel: Model<Experiencia>,
     @InjectModel(Presentacion.name)
     private readonly presentacionModel: Model<Presentacion>,
+    @InjectModel(Resultado.name)
+    private readonly resultadoModel: Model<Resultado>,
   ) {}
 
   async unirse(dto: CreateInscripcionDto): Promise<InscripcionDocument> {
@@ -118,6 +121,15 @@ export class InscripcionesService {
     if (tienePresentaciones) {
       throw new ConflictException(
         'No se puede eliminar una inscripción con presentaciones.',
+      );
+    }
+
+    const tieneResultados = await this.resultadoModel.exists({
+      id_inscripcion: id,
+    });
+    if (tieneResultados) {
+      throw new ConflictException(
+        'No se puede eliminar una inscripción con resultados calculados.',
       );
     }
 

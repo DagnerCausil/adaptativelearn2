@@ -71,7 +71,9 @@ export class InscripcionesController {
   @ApiOkResponse({ description: 'Inscripción eliminada.' })
   @ApiBadRequestResponse({ description: 'El ID no es un ObjectId válido.' })
   @ApiNotFoundResponse({ description: 'Inscripción no encontrada.' })
-  @ApiConflictResponse({ description: 'La inscripción tiene presentaciones.' })
+  @ApiConflictResponse({
+    description: 'La inscripción tiene presentaciones o resultados.',
+  })
   remove(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
     return this.inscripcionesService.remove(id);
   }
