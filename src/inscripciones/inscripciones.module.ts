@@ -13,6 +13,10 @@ import {
   PresentacionSchema,
 } from '../presentaciones/schemas/presentacion.schema.js';
 import {
+  Resultado,
+  ResultadoSchema,
+} from '../resultados/schemas/resultado.schema.js';
+import {
   Inscripcion,
   InscripcionSchema,
 } from './schemas/inscripcion.schema.js';
@@ -26,6 +30,7 @@ import { InscripcionesService } from './inscripciones.service.js';
       { name: Estudiante.name, schema: EstudianteSchema },
       { name: Experiencia.name, schema: ExperienciaSchema },
       { name: Presentacion.name, schema: PresentacionSchema },
+      { name: Resultado.name, schema: ResultadoSchema },
     ]),
   ],
   controllers: [InscripcionesController],
