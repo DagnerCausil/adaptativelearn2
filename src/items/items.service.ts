@@ -71,8 +71,24 @@ export class ItemsService {
     return item;
   }
 
+  /** 409 si el ítem ya se mostró a estudiantes: editarlo alteraría respuestas y resultados guardados. */
+  private async exigirSinPresentaciones(
+    id: Types.ObjectId,
+    accion: string,
+  ): Promise<void> {
+    const tienePresentaciones = await this.presentacionModel.exists({
+      id_item: id,
+    });
+    if (tienePresentaciones) {
+      throw new ConflictException(
+        `No se puede ${accion} un ítem que ya se presentó a estudiantes.`,
+      );
+    }
+  }
+
   async update(id: Types.ObjectId, dto: UpdateItemDto): Promise<ItemDocument> {
     await this.findOne(id);
+    await this.exigirSinPresentaciones(id, 'editar');
 
     if (dto.formato && dto.formato !== 'matching') {
       const tieneGrupo = await this.opcionModel.exists({
@@ -100,6 +116,11 @@ export class ItemsService {
     id: Types.ObjectId,
     dto: RevisionItemDto,
   ): Promise<ItemDocument> {
+    // Un ítem aprobado puede presentarse: antes debe cumplir RI-4.
+    if (dto.estado_revision === 'aprobado') {
+      await this.validarOpciones(id);
+    }
+
     const item = await this.itemModel
       .findByIdAndUpdate(
         id,
@@ -116,15 +137,7 @@ export class ItemsService {
 
   async remove(id: Types.ObjectId): Promise<ItemDocument> {
     const item = await this.findOne(id);
-
-    const tienePresentaciones = await this.presentacionModel.exists({
-      id_item: id,
-    });
-    if (tienePresentaciones) {
-      throw new ConflictException(
-        'No se puede eliminar un ítem que ya se presentó a estudiantes.',
-      );
-    }
+    await this.exigirSinPresentaciones(id, 'eliminar');
 
     // Sin presentaciones no hay respuestas, así que sus opciones se borran con él.
     await this.opcionModel.deleteMany({ id_item: id }).exec();
@@ -145,14 +158,15 @@ export class ItemsService {
   }
 
   /**
-   * Aplica RI-4 a los ítems aprobados y no excluidos de la experiencia (control docente).
+   * Aplica RI-4 a los ítems aprobados y no excluidos de las evidencias incluidas
+   * de la experiencia (control docente); las evidencias excluidas nunca se presentan.
    * Se llama al publicar la experiencia; lanza 400 con todos los ítems que fallan.
    */
   async validarBancoDeExperiencia(
     idExperiencia: Types.ObjectId,
   ): Promise<void> {
     const selecciones = await this.experienciaEvidenciaModel
-      .find({ id_experiencia: idExperiencia })
+      .find({ id_experiencia: idExperiencia, incluida: true })
       .exec();
     if (selecciones.length === 0) {
       return;

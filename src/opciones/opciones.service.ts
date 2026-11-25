@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Item, ItemDocument } from '../items/schemas/item.schema.js';
+import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
 import { RespuestaOpcion } from '../respuestas_opciones/schemas/respuesta-opcion.schema.js';
 import { CreateOpcionDto } from './dto/create-opcion.dto.js';
 import { UpdateOpcionDto } from './dto/update-opcion.dto.js';
@@ -23,6 +24,8 @@ export class OpcionesService {
     private readonly itemModel: Model<Item>,
     @InjectModel(RespuestaOpcion.name)
     private readonly respuestaOpcionModel: Model<RespuestaOpcion>,
+    @InjectModel(Presentacion.name)
+    private readonly presentacionModel: Model<Presentacion>,
   ) {}
 
   private async buscarItem(idItem: Types.ObjectId): Promise<ItemDocument> {
@@ -65,6 +68,18 @@ export class OpcionesService {
     dto: UpdateOpcionDto,
   ): Promise<OpcionDocument> {
     const actual = await this.findOne(id);
+
+    // Cambiar una opción de un ítem ya presentado (p. ej. cuál es la correcta)
+    // alteraría respuestas y resultados guardados.
+    const itemPresentado = await this.presentacionModel.exists({
+      id_item: actual.id_item,
+    });
+    if (itemPresentado) {
+      throw new ConflictException(
+        'No se puede editar una opción de un ítem que ya se presentó a estudiantes.',
+      );
+    }
+
     if (dto.grupo) {
       const item = await this.buscarItem(actual.id_item);
       if (item.formato !== 'matching') {

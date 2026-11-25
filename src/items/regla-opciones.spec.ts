@@ -1,4 +1,12 @@
-import { faltantesRI4, OpcionParaValidar } from './regla-opciones.js';
+import {
+  CORRECTAS_SINGLE_CHOICE,
+  faltantesRI4,
+  MIN_OPCIONES_MATCHING,
+  MIN_OPCIONES_ORDERING,
+  MIN_OPCIONES_POR_LADO_MATCHING,
+  MIN_OPCIONES_SINGLE_CHOICE,
+  OpcionParaValidar,
+} from './regla-opciones.js';
 
 const correcta: OpcionParaValidar = { es_correcta: true };
 const distractor: OpcionParaValidar = { es_correcta: false };
@@ -6,6 +14,14 @@ const izquierda: OpcionParaValidar = { es_correcta: true, grupo: 'izquierda' };
 const derecha: OpcionParaValidar = { es_correcta: true, grupo: 'derecha' };
 
 describe('RI-4: mínimo de opciones por formato', () => {
+  it('usa constantes con nombre para los mínimos de RI-4', () => {
+    expect(MIN_OPCIONES_SINGLE_CHOICE).toBe(2);
+    expect(CORRECTAS_SINGLE_CHOICE).toBe(1);
+    expect(MIN_OPCIONES_ORDERING).toBe(2);
+    expect(MIN_OPCIONES_MATCHING).toBe(4);
+    expect(MIN_OPCIONES_POR_LADO_MATCHING).toBe(2);
+  });
+
   describe('single_choice', () => {
     it('acepta 2 opciones con exactamente 1 correcta', () => {
       expect(faltantesRI4('single_choice', [correcta, distractor])).toEqual([]);

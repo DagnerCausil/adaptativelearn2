@@ -7,6 +7,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Item } from '../items/schemas/item.schema.js';
+import { Presentacion } from '../presentaciones/schemas/presentacion.schema.js';
 import { RespuestaOpcion } from '../respuestas_opciones/schemas/respuesta-opcion.schema.js';
 import { CreateOpcionDto } from './dto/create-opcion.dto.js';
 import { Opcion } from './schemas/opcion.schema.js';
@@ -37,6 +38,7 @@ describe('OpcionesService', () => {
   };
   const mockItemModel = { findById: vi.fn() };
   const mockRespuestaOpcionModel = { exists: vi.fn() };
+  const mockPresentacionModel = { exists: vi.fn() };
   let service: OpcionesService;
 
   beforeEach(async () => {
@@ -49,6 +51,10 @@ describe('OpcionesService', () => {
         {
           provide: getModelToken(RespuestaOpcion.name),
           useValue: mockRespuestaOpcionModel,
+        },
+        {
+          provide: getModelToken(Presentacion.name),
+          useValue: mockPresentacionModel,
         },
       ],
     }).compile();
@@ -115,6 +121,7 @@ describe('OpcionesService', () => {
   describe('update', () => {
     it('updates an option', async () => {
       mockOpcionModel.findById.mockReturnValue(conExec(opcion));
+      mockPresentacionModel.exists.mockResolvedValue(null);
       mockOpcionModel.findByIdAndUpdate.mockReturnValue(conExec(opcion));
 
       await expect(service.update(idOpcion, { texto: 'Nuevo' })).resolves.toBe(
@@ -127,8 +134,22 @@ describe('OpcionesService', () => {
       );
     });
 
+    it('blocks editing an option whose item was presented (409)', async () => {
+      mockOpcionModel.findById.mockReturnValue(conExec(opcion));
+      mockPresentacionModel.exists.mockResolvedValue({ _id: 'presentacion' });
+
+      await expect(
+        service.update(idOpcion, { es_correcta: false }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(mockPresentacionModel.exists).toHaveBeenCalledWith({
+        id_item: idItem,
+      });
+      expect(mockOpcionModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
     it('rejects adding grupo to an option of a non-matching item', async () => {
       mockOpcionModel.findById.mockReturnValue(conExec(opcion));
+      mockPresentacionModel.exists.mockResolvedValue(null);
       mockItemModel.findById.mockReturnValue(conExec(itemSingle));
 
       await expect(
