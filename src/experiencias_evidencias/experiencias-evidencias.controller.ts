@@ -23,7 +23,8 @@ export class ExperienciasEvidenciasController {
   @ApiParam({ name: 'id', description: 'ObjectId de la experiencia.' })
   @ApiCreatedResponse({ description: 'Evidencia seleccionada (incluida = true).' })
   @ApiBadRequestResponse({
-    description: 'Datos no válidos o la evidencia es de otro DBA.',
+    description:
+      'Datos no válidos, la evidencia es de otro DBA o la experiencia no está en borrador.',
   })
   @ApiNotFoundResponse({ description: 'La experiencia o la evidencia no existen.' })
   @ApiConflictResponse({ description: 'La evidencia ya estaba seleccionada.' })
@@ -52,8 +53,13 @@ export class ExperienciasEvidenciasController {
     description: 'ObjectId de la selección (experiencias_evidencias).',
   })
   @ApiOkResponse({ description: 'Inclusión actualizada.' })
-  @ApiBadRequestResponse({ description: 'Los IDs o los datos no son válidos.' })
-  @ApiNotFoundResponse({ description: 'La selección no existe en esta experiencia.' })
+  @ApiBadRequestResponse({
+    description:
+      'Los IDs o los datos no son válidos, o la experiencia no está en borrador.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La experiencia no existe o la selección no es de esta experiencia.',
+  })
   cambiarInclusion(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @Param('idSeleccion', ParseObjectIdPipe) idSeleccion: Types.ObjectId,

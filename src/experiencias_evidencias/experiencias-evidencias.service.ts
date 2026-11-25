@@ -56,11 +56,21 @@ export class ExperienciasEvidenciasService {
     return experiencia;
   }
 
+  /** Las evidencias solo se cambian mientras la experiencia está en borrador. */
+  private exigirBorrador(experiencia: ExperienciaDocument): void {
+    if (experiencia.estado !== 'borrador') {
+      throw new BadRequestException(
+        'Solo se pueden cambiar las evidencias de una experiencia en borrador',
+      );
+    }
+  }
+
   async seleccionar(
     idExperiencia: Types.ObjectId,
     dto: CreateExperienciaEvidenciaDto,
   ): Promise<ExperienciaEvidenciaDocument> {
     const experiencia = await this.buscarExperiencia(idExperiencia);
+    this.exigirBorrador(experiencia);
 
     const idEvidencia = new Types.ObjectId(dto.id_evidencia);
     const evidencia = await this.evidenciaModel.findById(idEvidencia).exec();
@@ -111,6 +121,9 @@ export class ExperienciasEvidenciasService {
     idSeleccion: Types.ObjectId,
     dto: CambiarInclusionDto,
   ): Promise<ExperienciaEvidenciaDocument> {
+    const experiencia = await this.buscarExperiencia(idExperiencia);
+    this.exigirBorrador(experiencia);
+
     const seleccion = await this.experienciaEvidenciaModel
       .findOneAndUpdate(
         { _id: idSeleccion, id_experiencia: idExperiencia },
