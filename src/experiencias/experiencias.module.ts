@@ -10,6 +10,7 @@ import {
   Inscripcion,
   InscripcionSchema,
 } from '../inscripciones/schemas/inscripcion.schema.js';
+import { ItemsModule } from '../items/items.module.js';
 import { Item, ItemSchema } from '../items/schemas/item.schema.js';
 import { ExperienciasController } from './experiencias.controller.js';
 import { ExperienciasService } from './experiencias.service.js';
@@ -25,6 +26,7 @@ import { Experiencia, ExperienciaSchema } from './schemas/experiencia.schema.js'
       { name: Inscripcion.name, schema: InscripcionSchema },
       { name: Item.name, schema: ItemSchema },
     ]),
+    ItemsModule,
   ],
   controllers: [ExperienciasController],
   providers: [ExperienciasService],

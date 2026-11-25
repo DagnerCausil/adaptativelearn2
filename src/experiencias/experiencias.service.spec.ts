@@ -10,6 +10,7 @@ import { Dba } from '../dbas/schemas/dba.schema.js';
 import { Docente } from '../docentes/schemas/docente.schema.js';
 import { ExperienciaEvidencia } from '../experiencias_evidencias/schemas/experiencia-evidencia.schema.js';
 import { Inscripcion } from '../inscripciones/schemas/inscripcion.schema.js';
+import { ItemsService } from '../items/items.service.js';
 import { Item } from '../items/schemas/item.schema.js';
 import { ExperienciasService } from './experiencias.service.js';
 import { Experiencia } from './schemas/experiencia.schema.js';
@@ -34,6 +35,7 @@ describe('ExperienciasService', () => {
   };
   const mockInscripcionModel = { exists: vi.fn() };
   const mockItemModel = { exists: vi.fn() };
+  const mockItemsService = { validarBancoDeExperiencia: vi.fn() };
   let service: ExperienciasService;
 
   function experienciaDoc(estado: 'borrador' | 'publicada' = 'borrador') {
@@ -69,6 +71,7 @@ describe('ExperienciasService', () => {
         },
         { provide: getModelToken(Inscripcion.name), useValue: mockInscripcionModel },
         { provide: getModelToken(Item.name), useValue: mockItemModel },
+        { provide: ItemsService, useValue: mockItemsService },
       ],
     }).compile();
 
@@ -207,11 +210,35 @@ describe('ExperienciasService', () => {
         _id: new Types.ObjectId(),
       });
 
+      mockItemsService.validarBancoDeExperiencia.mockResolvedValue(undefined);
+
       await service.publicar(id);
 
+      expect(mockItemsService.validarBancoDeExperiencia).toHaveBeenCalledWith(
+        id,
+      );
       expect(doc.estado).toBe('publicada');
       expect(doc.fecha_publicacion).toBeInstanceOf(Date);
       expect(doc.save).toHaveBeenCalled();
+    });
+
+    it('Parte B: 400 y no publica si el banco no cumple RI-4', async () => {
+      const doc = experienciaDoc('borrador');
+      encontrarExperiencia(doc);
+      mockExperienciaEvidenciaModel.exists.mockResolvedValue({
+        _id: new Types.ObjectId(),
+      });
+      mockItemsService.validarBancoDeExperiencia.mockRejectedValue(
+        new BadRequestException(
+          'matching necesita al menos 4 opciones (tiene 3)',
+        ),
+      );
+
+      await expect(service.publicar(id)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(doc.estado).toBe('borrador');
+      expect(doc.save).not.toHaveBeenCalled();
     });
 
     it('400 si ya estaba publicada', async () => {

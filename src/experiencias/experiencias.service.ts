@@ -11,6 +11,7 @@ import { Dba } from '../dbas/schemas/dba.schema.js';
 import { Docente } from '../docentes/schemas/docente.schema.js';
 import { ExperienciaEvidencia } from '../experiencias_evidencias/schemas/experiencia-evidencia.schema.js';
 import { Inscripcion } from '../inscripciones/schemas/inscripcion.schema.js';
+import { ItemsService } from '../items/items.service.js';
 import { Item } from '../items/schemas/item.schema.js';
 import { generarCodigoInvitacion } from './codigo-invitacion.js';
 import { CreateExperienciaDto } from './dto/create-experiencia.dto.js';
@@ -52,6 +53,7 @@ export class ExperienciasService {
     private readonly inscripcionModel: Model<Inscripcion>,
     @InjectModel(Item.name)
     private readonly itemModel: Model<Item>,
+    private readonly itemsService: ItemsService,
   ) {}
 
   async create(dto: CreateExperienciaDto): Promise<ExperienciaDocument> {
@@ -131,7 +133,7 @@ export class ExperienciasService {
 
   /**
    * Reglas que debe cumplir una experiencia para publicarse. Si alguna falla, lanza 400.
-   * Punto de extensión: aquí se agrega la validación del banco de ítems (RI-4).
+   * Incluye la validación del banco de ítems (RI-4) de ItemsService.
    */
   private async validarAntesDePublicar(
     experiencia: ExperienciaDocument,
@@ -152,6 +154,9 @@ export class ExperienciasService {
         'La experiencia necesita al menos una evidencia incluida para publicarse.',
       );
     }
+
+    // RI-4 / H-9: cada ítem aprobado y no excluido cumple el mínimo de opciones.
+    await this.itemsService.validarBancoDeExperiencia(experiencia._id);
   }
 
   async remove(id: Types.ObjectId): Promise<ExperienciaDocument> {

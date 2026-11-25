@@ -134,6 +134,7 @@ describe('ItemsService', () => {
   describe('update', () => {
     it('updates enunciado, formato and excluido', async () => {
       mockItemModel.findById.mockReturnValue(conExec(item));
+      mockPresentacionModel.exists.mockResolvedValue(null);
       mockOpcionModel.exists.mockResolvedValue(null);
       mockItemModel.findByIdAndUpdate.mockReturnValue(conExec(item));
       const dto = {
@@ -153,6 +154,7 @@ describe('ItemsService', () => {
       mockItemModel.findById.mockReturnValue(
         conExec({ ...item, formato: 'matching' }),
       );
+      mockPresentacionModel.exists.mockResolvedValue(null);
       mockOpcionModel.exists.mockResolvedValue({ _id: 'opcion' });
 
       await expect(
@@ -160,11 +162,28 @@ describe('ItemsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(mockItemModel.findByIdAndUpdate).not.toHaveBeenCalled();
     });
+
+    it('blocks editing an item already presented (409)', async () => {
+      mockItemModel.findById.mockReturnValue(conExec(item));
+      mockPresentacionModel.exists.mockResolvedValue({ _id: 'presentacion' });
+
+      await expect(
+        service.update(id, { enunciado: 'Otro' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(mockPresentacionModel.exists).toHaveBeenCalledWith({
+        id_item: id,
+      });
+      expect(mockItemModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
   });
 
   describe('revisar (control docente)', () => {
-    it('approves an item', async () => {
+    it('approves an item that meets RI-4', async () => {
       const aprobado = { ...item, estado_revision: 'aprobado' };
+      mockItemModel.findById.mockReturnValue(conExec(item));
+      mockOpcionModel.find.mockReturnValue(
+        conExec([{ es_correcta: true }, { es_correcta: false }]),
+      );
       mockItemModel.findByIdAndUpdate.mockReturnValue(conExec(aprobado));
 
       await expect(
@@ -177,7 +196,19 @@ describe('ItemsService', () => {
       );
     });
 
-    it('rejects an item', async () => {
+    it('does not approve a single_choice item without a correct option (400)', async () => {
+      mockItemModel.findById.mockReturnValue(conExec(item));
+      mockOpcionModel.find.mockReturnValue(
+        conExec([{ es_correcta: false }, { es_correcta: false }]),
+      );
+
+      await expect(
+        service.revisar(id, { estado_revision: 'aprobado' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockItemModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects an item without checking its options', async () => {
       mockItemModel.findByIdAndUpdate.mockReturnValue(
         conExec({ ...item, estado_revision: 'rechazado' }),
       );
@@ -185,10 +216,11 @@ describe('ItemsService', () => {
       await expect(
         service.revisar(id, { estado_revision: 'rechazado' }),
       ).resolves.toMatchObject({ estado_revision: 'rechazado' });
+      expect(mockOpcionModel.find).not.toHaveBeenCalled();
     });
 
     it('throws 404 when the item does not exist', async () => {
-      mockItemModel.findByIdAndUpdate.mockReturnValue(conExec(null));
+      mockItemModel.findById.mockReturnValue(conExec(null));
 
       await expect(
         service.revisar(id, { estado_revision: 'aprobado' }),
@@ -249,7 +281,7 @@ describe('ItemsService', () => {
   });
 
   describe('validarBancoDeExperiencia', () => {
-    it('only validates approved, non-excluded items of the experience', async () => {
+    it('only validates approved, non-excluded items of included evidences', async () => {
       mockExperienciaEvidenciaModel.find.mockReturnValue(
         conExec([{ _id: idSeleccion }]),
       );
@@ -260,6 +292,7 @@ describe('ItemsService', () => {
       ).resolves.toBeUndefined();
       expect(mockExperienciaEvidenciaModel.find).toHaveBeenCalledWith({
         id_experiencia: idExperiencia,
+        incluida: true,
       });
       expect(mockItemModel.find).toHaveBeenCalledWith({
         id_experiencia_evidencia: { $in: [idSeleccion] },
